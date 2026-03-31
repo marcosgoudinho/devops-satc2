@@ -1,0 +1,78 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          args: >
+            -Dsonar.projectKey=marcosgoudinho_devops-satc2
+            -Dsonar.organization=marcosgoudinho27
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.sources=.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Build Docker image
+        run: docker build -t usuario/satc-devops:0.0.2 .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.20.0
+        with:
+          scan-type: image
+          image-ref: usuario/satc-devops:0.0.2
+          format: json
+          output: trivy-results.json
+          severity: MEDIUM,HIGH,CRITICAL
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Upload Trivy results as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: trivy-results.json
+
+      - name: Analyze Trivy results
+        run: |
+          if [ -f trivy-results.json ]; then
+            VULN_COUNT=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity == "MEDIUM")] | length' trivy-results.json)
+
+            echo "Quantidade de vulnerabilidades medias: $VULN_COUNT"
+
+            if [ "$VULN_COUNT" -gt 2 ]; then
+              echo "Pipeline bloqueada: mais de 2 vulnerabilidades medias encontradas."
+              exit 1
+            fi
+          else
+            echo "Arquivo de resultados do Trivy nao encontrado."
+            exit 1
+          fi
+
+      - name: Fail if more than 2 vulnerabilities in SonarCloud
+        run: |
+          COUNT=$(curl -s -u "${SONAR_TOKEN}:" \
+            "https://sonarcloud.io/api/issues/search?componentKeys=${SONAR_PROJECT_KEY}&types=VULNERABILITY&severities=MAJOR&resolved=false" \
+            | jq '.total')
+
+          echo "Quantidade de vulnerabilidades (MAJOR): $COUNT"
+
+          if [ "$COUNT" -gt 2 ]; then
+            echo "Pipeline bloqueada: mais de 2 vulnerabilidades encontradas no SonarCloud."
+            exit 1
+          fi
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: marcosgoudinho_devops-satc2

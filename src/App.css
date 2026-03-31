@@ -1,0 +1,12 @@
+.app-root { display:flex; align-items:center; justify-content:center; min-height:100vh; background:#f4f6f8; }
+.calculator { background:#fff; padding:18px; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.08); width:360px; }
+.display { background:#0b0f1a; color:#fff; font-size:36px; padding:14px; border-radius:8px; text-align:right; min-height:56px; box-sizing:border-box; }
+.buttons { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px; }
+button { padding:12px; font-size:18px; border-radius:8px; border:0; background:#e9eef3; cursor:pointer; }
+button.op { background:#ffd166; }
+button.equal { background:#06d6a0; color:#fff; grid-column:span 2; }
+button.clear { background:#ef476f; color:#fff; }
+
+@media (max-width:420px) {
+  .calculator { width:92vw; }
+}
