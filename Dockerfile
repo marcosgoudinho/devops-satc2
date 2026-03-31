@@ -7,7 +7,7 @@ WORKDIR /app
 # Install dependencies (use npm ci for reproducible installs)
 # Copy package files first to leverage Docker layer cache
 COPY package*.json ./
-RUN npm ci --silent
+RUN npm install --silent
 
 # Copy source and build
 COPY . .

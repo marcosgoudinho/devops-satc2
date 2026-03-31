@@ -25,13 +25,13 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: Build Docker image
-        run: docker build -t usuario/satc-devops:0.0.2 .
+        run: docker build -t usuario/satc-devops2:0.0.2 .
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@v0.20.0
         with:
           scan-type: image
-          image-ref: usuario/satc-devops:0.0.2
+          image-ref: usuario/satc-devops2:0.0.2
           format: json
           output: trivy-results.json
           severity: MEDIUM,HIGH,CRITICAL
