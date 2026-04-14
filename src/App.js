@@ -33,6 +33,9 @@ function App() {
 
   return (
     <div className="app-root">
+      <h1 style={{ textAlign: 'center', marginTop: 24, marginBottom: 16 }}>
+        Marcos Vinicius Goudinho da Silva
+      </h1>
       <div className="calculator">
         <div className="display" data-testid="display">{expr || '0'}</div>
         <div className="buttons">
