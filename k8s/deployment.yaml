@@ -24,7 +24,7 @@ spec:
       - name: app-satc
         image: docker.io/##DOCKER_USERNAME##/satc-devops:##K8S_TAG##
         ports:
-        - containerPort: 80
+        - containerPort: 4173
           name: http
 ---
 apiVersion: v1
@@ -40,6 +40,28 @@ spec:
     app: app-satc
   ports:
   - port: 80
-    targetPort: 80
+    targetPort: 4173
     name: http
     protocol: TCP
+---
+# ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-satc
+  namespace: ##K8S_NAMESPACE##
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: ##DOCKER_USERNAME##.app.devops-satc.online
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: app-satc
+            port:
+              number: 80
