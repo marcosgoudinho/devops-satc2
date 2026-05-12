@@ -28,19 +28,6 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-#      - name: Falhar se houver mais de 2 vulnerabilidades médias
-#        run: |
-#          sh ./scripts/sonar_check.sh
-
-#          if [ "$COUNT" -gt 2 ]; then
-#            echo "Pipeline bloqueada: mais de 2 vulnerabilidades médias encontradas."
-#            exit 1
-#          fi
-        #env:
-        #  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        #  SONAR_HOST_URL: https://sonarcloud.io
-        #  SONAR_PROJECT_KEY: ${{ secrets.DOCKER_USERNAME }}
-
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
