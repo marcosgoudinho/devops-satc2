@@ -9,7 +9,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -21,7 +20,6 @@ jobs:
         id: auth
         uses: google-github-actions/auth@v2
         with:
-          project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: 'projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider2'
           service_account: 'gke-deploy-sa@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
 
@@ -34,24 +32,21 @@ jobs:
           cluster_name: ${{ vars.GKE_CLUSTER_NAME }}
           location: ${{ vars.GKE_CLUSTER_LOCATION }}
 
-      - name: Replace vars in deployment.yaml
+      - name: Substituir variáveis no deployment.yaml
         run: |
-          IMAGE_TAG=${{ github.event.workflow_run.head_sha || github.sha }}
           sed -i 's/##DOCKER_USERNAME##/${{ secrets.DOCKER_USERNAME }}/g' k8s/deployment.yaml
           sed -i 's/##K8S_NAMESPACE##/${{ vars.K8S_NAMESPACE }}/g' k8s/deployment.yaml
-          sed -i "s/##K8S_TAG##/${IMAGE_TAG}/g" k8s/deployment.yaml
+          sed -i 's/##K8S_TAG##/${{ github.event.workflow_run.head_sha || github.sha }}/g' k8s/deployment.yaml
+          sed -i 's/##K8S_NAMESPACE##/${{ vars.K8S_NAMESPACE }}/g' k8s/hpa.yaml
 
       - name: Criar namespace se não existir
         run: |
-          # Cria namespace ${{ vars.K8S_NAMESPACE }} idempotentemente
           kubectl create namespace ${{ vars.K8S_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Aplicar manifests Kubernetes
         run: |
-          # Aplica deployment.yaml e service.yaml do diretório k8s/
           kubectl apply -f k8s/ -n ${{ vars.K8S_NAMESPACE }}
 
-      # - name: Aguardar rollout do deployment
-      #   run: |
-      #     # Verifica status do rollout (timeout 5min)
-      #     kubectl rollout status deployment/satc-devops -n ${{ vars.K8S_NAMESPACE }} --timeout=300s
+      - name: Aguardar rollout do deployment
+        run: |
+          kubectl rollout status deployment/devops-satc -n ${{ vars.K8S_NAMESPACE }} --timeout=300s

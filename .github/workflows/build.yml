@@ -21,7 +21,7 @@ jobs:
         uses: SonarSource/sonarcloud-github-action@v2
         with:
           args: >
-            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY  }}_satc-devops
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.sources=.
@@ -35,25 +35,16 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/satc-devops:${{ github.sha }} .
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/devops-satc:${{ github.sha }} .
 
       - name: Push Docker image
-        run: docker push docker.io/${{ secrets.DOCKER_USERNAME }}/satc-devops:${{ github.sha }}
-
-      # - name: Pull image
-      #   run: docker pull docker.io/${{ secrets.DOCKER_USERNAME }}/satc-devops:${{ github.sha }}
-
-#      - name: Load image into Kind
-#        run: kind load docker-image docker.io/${{ secrets.DOCKER_USERNAME }}/satc-devops:${{ github.sha }} --name cluster-satc
-
-#      - name: Deploy to cluster
-#        run: kubectl apply -f deployment.yaml
+        run: docker push docker.io/${{ secrets.DOCKER_USERNAME }}/devops-satc:${{ github.sha }}
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'image'
-          image-ref: 'docker.io/${{ secrets.DOCKER_USERNAME }}/satc-devops:${{ github.sha }}'
+          image-ref: 'docker.io/${{ secrets.DOCKER_USERNAME }}/devops-satc:${{ github.sha }}'
           format: json
           output: trivy-results.json
           severity: MEDIUM,HIGH,CRITICAL
@@ -69,17 +60,34 @@ jobs:
           if [ -f trivy-results.json ]; then
             VULN_COUNT_MEDIUM=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "MEDIUM")] | length' trivy-results.json)
             echo "Quantidade de vulnerabilidades médias: $VULN_COUNT_MEDIUM"
-          fi
-          if [ -f trivy-results.json ]; then
+
             VULN_COUNT_HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' trivy-results.json)
             echo "Quantidade de vulnerabilidades altas: $VULN_COUNT_HIGH"
+
+            if [ "$VULN_COUNT_MEDIUM" -gt 50 ]; then
+              echo "Pipeline bloqueada: mais de 50 vulnerabilidades médias encontradas."
+              exit 1
+            fi
+            if [ "$VULN_COUNT_HIGH" -gt 50 ]; then
+              echo "Pipeline bloqueada: mais de 50 vulnerabilidades altas encontradas."
+              exit 1
+            fi
+          else
+            echo "Arquivo de resultados do Trivy não encontrado."
+            exit 1
           fi
 
-          if [ "$VULN_COUNT_MEDIUM" -gt 50 ]; then
-             echo "Pipeline bloqueada: mais de 5 vulnerabilidades médias encontradas."
-             exit 1
-           fi
-          if [ "$VULN_COUNT_HIGH" -gt 50 ]; then
-             echo "Pipeline bloqueada: mais de 5 vulnerabilidades altas encontradas."
-             exit 1
-           fi
+      - name: Verificar vulnerabilidades no SonarCloud
+        run: |
+          COUNT=$(curl -s -u "${SONAR_TOKEN}:" \
+            "https://sonarcloud.io/api/issues/search?componentKeys=${{ secrets.SONAR_PROJECT_KEY }}&types=VULNERABILITY&severities=MAJOR&resolved=false" \
+            | jq '.total')
+
+          echo "Quantidade de vulnerabilidades MAJOR no SonarCloud: $COUNT"
+
+          if [ "$COUNT" -gt 2 ]; then
+            echo "Pipeline bloqueada: mais de 2 vulnerabilidades MAJOR encontradas no SonarCloud."
+            exit 1
+          fi
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

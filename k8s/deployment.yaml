@@ -1,10 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: app-satc
+  name: devops-satc
   namespace: ##K8S_NAMESPACE##
   labels:
-    app: app-satc
+    app: devops-satc
 spec:
   replicas: 1
   strategy:
@@ -14,41 +14,40 @@ spec:
       maxSurge: 1
   selector:
     matchLabels:
-      app: app-satc
+      app: devops-satc
   template:
     metadata:
       labels:
-        app: app-satc
+        app: devops-satc
     spec:
       containers:
-      - name: app-satc
-        image: docker.io/##DOCKER_USERNAME##/satc-devops:##K8S_TAG##
+      - name: devops-satc
+        image: docker.io/##DOCKER_USERNAME##/devops-satc:##K8S_TAG##
         ports:
-        - containerPort: 4173
+        - containerPort: 4776
           name: http
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: app-satc
+  name: devops-satc
   namespace: ##K8S_NAMESPACE##
   labels:
-    app: app-satc
+    app: devops-satc
 spec:
   type: ClusterIP
   selector:
-    app: app-satc
+    app: devops-satc
   ports:
   - port: 80
-    targetPort: 4173
+    targetPort: 4776
     name: http
     protocol: TCP
 ---
-# ingress.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: app-satc
+  name: devops-satc
   namespace: ##K8S_NAMESPACE##
   annotations:
     kubernetes.io/ingress.class: "nginx"
@@ -62,6 +61,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: app-satc
+            name: devops-satc
             port:
               number: 80
