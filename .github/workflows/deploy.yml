@@ -21,6 +21,7 @@ jobs:
         id: auth
         uses: google-github-actions/auth@v2
         with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: 'projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider2'
           service_account: 'gke-deploy-sa@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
 
