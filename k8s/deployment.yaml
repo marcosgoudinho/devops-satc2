@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-satc
+  namespace: ##K8S_NAMESPACE##
+  labels:
+    app: app-satc
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: app-satc
+  template:
+    metadata:
+      labels:
+        app: app-satc
+    spec:
+      containers:
+      - name: app-satc
+        image: docker.io/##DOCKER_USERNAME##/satc-devops:##K8S_TAG##
+        ports:
+        - containerPort: 80
+          name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-satc
+  namespace: ##K8S_NAMESPACE##
+  labels:
+    app: app-satc
+spec:
+  type: ClusterIP
+  selector:
+    app: app-satc
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+    protocol: TCP

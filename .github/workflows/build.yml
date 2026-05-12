@@ -1,0 +1,98 @@
+name: Build
+
+on:
+  workflow_call:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build-and-analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          args: >
+            -Dsonar.projectKey=${{ secrets.DOCKER_USERNAME }}_satc-devops
+            -Dsonar.organization=${{ secrets.DOCKER_USERNAME }}
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.sources=.
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+#      - name: Falhar se houver mais de 2 vulnerabilidades médias
+#        run: |
+#          sh ./scripts/sonar_check.sh
+
+#          if [ "$COUNT" -gt 2 ]; then
+#            echo "Pipeline bloqueada: mais de 2 vulnerabilidades médias encontradas."
+#            exit 1
+#          fi
+        #env:
+        #  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        #  SONAR_HOST_URL: https://sonarcloud.io
+        #  SONAR_PROJECT_KEY: ${{ secrets.DOCKER_USERNAME }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/satc-devops:${{ github.sha }} .
+
+      - name: Push Docker image
+        run: docker push docker.io/${{ secrets.DOCKER_USERNAME }}/satc-devops:${{ github.sha }}
+
+      # - name: Pull image
+      #   run: docker pull docker.io/${{ secrets.DOCKER_USERNAME }}/satc-devops:${{ github.sha }}
+
+#      - name: Load image into Kind
+#        run: kind load docker-image docker.io/${{ secrets.DOCKER_USERNAME }}/satc-devops:${{ github.sha }} --name cluster-satc
+
+#      - name: Deploy to cluster
+#        run: kubectl apply -f deployment.yaml
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'image'
+          image-ref: 'docker.io/${{ secrets.DOCKER_USERNAME }}/satc-devops:${{ github.sha }}'
+          format: json
+          output: trivy-results.json
+          severity: MEDIUM,HIGH,CRITICAL
+
+      - name: Upload Trivy results as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results.json
+          path: trivy-results.json
+
+      - name: Analyze Trivy results
+        run: |
+          if [ -f trivy-results.json ]; then
+            VULN_COUNT_MEDIUM=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "MEDIUM")] | length' trivy-results.json)
+            echo "Quantidade de vulnerabilidades médias: $VULN_COUNT_MEDIUM"
+          fi
+          if [ -f trivy-results.json ]; then
+            VULN_COUNT_HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' trivy-results.json)
+            echo "Quantidade de vulnerabilidades altas: $VULN_COUNT_HIGH"
+          fi
+
+          if [ "$VULN_COUNT_MEDIUM" -gt 50 ]; then
+             echo "Pipeline bloqueada: mais de 5 vulnerabilidades médias encontradas."
+             exit 1
+           fi
+          if [ "$VULN_COUNT_HIGH" -gt 50 ]; then
+             echo "Pipeline bloqueada: mais de 5 vulnerabilidades altas encontradas."
+             exit 1
+           fi
