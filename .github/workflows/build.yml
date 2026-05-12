@@ -21,8 +21,8 @@ jobs:
         uses: SonarSource/sonarcloud-github-action@v2
         with:
           args: >
-            -Dsonar.projectKey=${{ secrets.DOCKER_USERNAME }}_satc-devops
-            -Dsonar.organization=${{ secrets.DOCKER_USERNAME }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY  }}_satc-devops
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.sources=.
         env:
